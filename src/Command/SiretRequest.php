@@ -20,45 +20,41 @@ class SiretRequest extends Command
     protected function configure()
     {
         $this->setDescription("Recherche de SIRET")
-                ->addArgument('fichier')
+                ->addArgument('source')
                 ->addArgument('sortie');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $client = \Symfony\Component\HttpClient\HttpClient::create();
-        $fch = fopen($input->getArgument('fichier'), 'r');
+        $fch = fopen($input->getArgument('source'), 'r');
         $dump = fopen($input->getArgument('sortie'), "w");
         $header = fgetcsv($fch);
 
         $lineCount = 2;
+        fputcsv($dump, ['source', 'siret', 'titre', 'adresse', 'code postal']);
         while ($row = fgetcsv($fch)) {
             if (0 === strlen(trim($row[2]))) {
                 continue;
             }
 
-            $recherche = "***** $lineCount : {$row[2]} {$row[3]} {$row[5]} *****";
+            $recherche = "*** $lineCount : {$row[2]} {$row[3]} {$row[5]} ***";
             $output->writeln($recherche);
-            fputcsv($dump, [$recherche]);
 
             $query = urlencode("{$row[2]} {$row[5]}");
-
             $url = "https://data.opendatasoft.com/api/records/1.0/search/?dataset=sirene_v3%40public&q=$query&rows=5&sort=datederniertraitementetablissement";
             $response = $client->request('GET', $url);
             $json = json_decode($response->getContent());
-            foreach ($json->records as $choice) {
-                $data = $choice->fields;
-                if (isset($data->adresseetablissement)) {
-                    $found = "{$data->siret} : {$data->l1_adressage_unitelegale} {$data->adresseetablissement} {$data->codepostaletablissement}";
-                    $output->writeln($found);
-                    fputcsv($dump, [$data->siret, $data->l1_adressage_unitelegale, $data->adresseetablissement, $data->codepostaletablissement]);
-                }
+
+            if ($json->nhits == 1) {
+                $data = $json->records[0]->fields;
+                fputcsv($dump, [$recherche, $data->siret, $data->l1_adressage_unitelegale, $data->adresseetablissement, $data->codepostaletablissement]);
+            } else {
+                fputcsv($dump, []);
             }
 
-            fputcsv($dump, []);
-            $output->writeln("\n");
             $lineCount++;
-            sleep(1);
+        //    sleep(1);
         }
 
         fclose($dump);
