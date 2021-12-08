@@ -48,13 +48,13 @@ class SiretRequest extends Command
 
             if ($json->nhits == 1) {
                 $data = $json->records[0]->fields;
-                fputcsv($dump, [$recherche, $data->siret, $data->l1_adressage_unitelegale, $data->adresseetablissement, $data->codepostaletablissement]);
+                fputcsv($dump, [$recherche, "{$data->siret} ", $data->l1_adressage_unitelegale, $data->adresseetablissement, $data->codepostaletablissement]);
             } else {
                 fputcsv($dump, []);
             }
 
             $lineCount++;
-        //    sleep(1);
+            sleep(1);
         }
 
         fclose($dump);
